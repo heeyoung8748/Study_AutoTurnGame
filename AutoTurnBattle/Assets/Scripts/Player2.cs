@@ -4,27 +4,24 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class Player : LivingEntity
+public class Player2 : LivingEntity
 {
     [SerializeField] private Slider _hp;
-    [SerializeField] private Player _enemy;
+    [SerializeField] private Player1 _enemy;
     [SerializeField] private Slider _attackGauge;
     [SerializeField] private TextMeshProUGUI _damagedUI;
-
-    // 속도 범위
-    private float _minSpeed = 1f;
-    private float _maxSpeed = 10f;
-
-    // 공격 데미지 범위
-    private int _minAttackDamage = 1;
-    private int _maxAttackDamage = 20;
+    [SerializeField] private TextMeshProUGUI _skillCoolTimeInfoUI;
 
     // 행동게이지 증가 시 속도를 반영하기 위한 쿨타임
     private float _gaugeCoolTime = 1f;
+    private int _initialSkill1Cool = 2;
+    private int _initialSkill2Cool = 4;
 
     protected override void OnEnable()
     {
         base.OnEnable();
+        SkillCool1 = _initialSkill1Cool;
+        SkillCool2 = _initialSkill2Cool;
 
         // SerializedField로 적용한 UI 초기화
         _hp.maxValue = InitialGauge;
@@ -32,8 +29,9 @@ public class Player : LivingEntity
         _attackGauge.maxValue = InitialGauge;
         _attackGauge.value = CurrentAttackGauge;
         _damagedUI.text = "";
+        _skillCoolTimeInfoUI.text = $"Turn: {SkillCool1} / {SkillCool2}";
 
-        Speed = Random.Range(_minSpeed, _maxSpeed) * 10;
+        Debug.Log($"Name: {transform.name} / ATK: {AttackPower} / DEF: {DefensivePower}");
     }
 
     private void Start()
@@ -52,38 +50,51 @@ public class Player : LivingEntity
             CurrentAttackGauge++;
             _attackGauge.value = CurrentAttackGauge;
 
-            // 게이지가 가득 찼을 시 자신의 턴이라면 공격한다
+            // 게이지가 가득 찼을 시 턴 확인
             if (CurrentAttackGauge >= _attackGauge.maxValue)
             {
-                if (IsMyTurn)
-                {
-                    Attack();
+                CurrentAttackGauge = 0;
+                _attackGauge.value = CurrentAttackGauge;
 
-                    CurrentAttackGauge = 0;
-                    _attackGauge.value = CurrentAttackGauge;
-                    IsMyTurn = false;
+                if (SkillCool2 <= 0)
+                {
+                    Skill2();
+                    SkillCool1 = Mathf.Max(0, --SkillCool1);
+                }
+                else if (SkillCool1 <= 0)
+                {
+                    Skill1();
+                    SkillCool2 = Mathf.Max(0, --SkillCool2);
                 }
                 else
                 {
-                    yield return null;
+                    _enemy.OnDamaged((int)AttackPower);
+                    SkillCool1 = Mathf.Max(0, --SkillCool1);
+                    SkillCool2 = Mathf.Max(0, --SkillCool2);
                 }
 
+                _skillCoolTimeInfoUI.text = $"Turn: {SkillCool1} / {SkillCool2}";
             }
 
             yield return new WaitForSeconds(_gaugeCoolTime / Speed);
         }
     }
 
-    /// <summary>
-    /// 랜덤 데미지를 결정하고 적에게 데미지를 입히는 함수
-    /// </summary>
-    private void Attack()
+    private void Skill1()
     {
-        int attackDamage = Random.Range(_minAttackDamage, _maxAttackDamage);
-        _enemy.OnDamaged(attackDamage);
+        int damage = (int)Mathf.Round(AttackPower + AttackPower * 0.3f);
+        Debug.Log(damage);
+        _enemy.OnDamaged(damage);
+        SkillCool1 = _initialSkill1Cool;
+    }
 
-        // 공격이 끝난 후 턴을 넘겨준다
-        _enemy.IsMyTurn = true;
+    private void Skill2()
+    {
+        int damage = (int)Mathf.Round(AttackPower * 0.9f);
+        Debug.Log(damage);
+        _enemy.OnDamaged(damage);
+        _enemy.OnDamaged(damage);
+        SkillCool2 = _initialSkill2Cool;
     }
 
     /// <summary>
@@ -96,7 +107,7 @@ public class Player : LivingEntity
 
         // HP와 피격 데미지를 UI에 적용한다
         _hp.value = CurrentHealth;
-        _damagedUI.text = $"{damage}";
+        _damagedUI.text = $"{TotalDamage}";
         Invoke("RemoveDamageUI", 1f);
     }
 

@@ -9,19 +9,33 @@ using UnityEngine.Events;
 public class LivingEntity : MonoBehaviour
 {
     public float Speed { get; protected set; } // 게이지 속도
+    public int AttackPower { get; protected set; } // 공격력
+    public int DefensivePower { get; protected set; } // 방어력
     public int CurrentHealth { get; protected set; } // 현재 체력
+    public int SkillCool1 { get; protected set; }
+    public int SkillCool2 { get; protected set; }
     public int CurrentAttackGauge { get; protected set; } // 게이지 차오른 정도
     public bool IsAlive { get; protected set; } // 플레이어 생존 여부
-    public bool IsMyTurn { get; set; } // 플레이어 공격 가능 여부
-    
+    public int TotalDamage { get; private set; }
+
     protected static int InitialGauge = 100; // 게이지 최댓값 초기화용
+
+    // 공격력, 방어력 범위
+    private float _minStatus = 30;
+    private float _maxStatus = 50;
+
+    // 속도 범위
+    private float _minSpeed = 1f;
+    private float _maxSpeed = 10f;
 
     protected virtual void OnEnable()
     {
         IsAlive = true;
         CurrentHealth = InitialGauge;
         CurrentAttackGauge = 0;
-        IsMyTurn = true;
+        AttackPower = (int)Random.Range(_minStatus, _maxStatus);
+        DefensivePower = (int)Random.Range(_minStatus, _maxStatus) - 10;
+        Speed = Random.Range(_minSpeed, _maxSpeed) * 10;
     }
 
     /// <summary>
@@ -30,7 +44,9 @@ public class LivingEntity : MonoBehaviour
     /// <param name="damage">피격 데미지</param>
     public virtual void OnDamaged(int damage)
     {
-        CurrentHealth -= damage;
+        TotalDamage = Mathf.Max(damage - DefensivePower, 0);
+        Debug.Log($"{transform.name} 피격당함! 받은 데미지: {TotalDamage}");
+        CurrentHealth -= TotalDamage;
 
         if(CurrentHealth <= 0 && IsAlive)
         {
